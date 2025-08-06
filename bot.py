@@ -37,18 +37,31 @@ async def start_handler(message: Message):
     await message.answer("Привет! Я помогу вам выбрать фильм на киновечер! 🎬 Отправь мне сыылки на фильм с Кинопоиска."
                          f"Дедлайн: {DEADLINE.strftime('%d.%m.%Y %H:%M')} по МСК.")
 
-@dp.message()
-async def collect_links(message: Message):
-    now = datetime.now()
-    if now > DEADLINE:
-        await message.answer("Прием ссылок завершён.")
+@router.message(F.text)
+async def handle_movie_links(message: Message):
+    if datetime.now() > DEADLINE:
+        await message.answer("⛔ Прием фильмов завершен.")
         return
 
-    if "kinopoisk.ru" in message.text:
-        submitted_links.append((message.from_user.full_name, message.text))
-        await message.answer("Ссылка принята ✅")
-    else:
-        await message.answer("Пожалуйста, отправь корректную ссылку на Кинопоиск.")
+    urls = re.findall(r'https?://\S+', message.text)
+
+    valid_urls = []
+    invalid_urls = []
+
+    for url in urls:
+        if re.match(KINOPOISK_URL_PATTERN, url):
+            valid_urls.append(url)
+        else:
+            invalid_urls.append(url)
+
+    # Сохраняем валидные ссылки
+    for url in valid_urls:
+        user_movie_suggestions.setdefault(message.from_user.id, []).append(url)
+
+    if invalid_urls:
+        await message.answer("⚠️ Некоторые ссылки недопустимы. Принимаются только ссылки на Кинопоиск.")
+    elif valid_urls:
+        await message.answer("✅ Фильм(ы) приняты!")
 
 # Основная функция запуска
 async def main():
@@ -57,6 +70,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
-
