@@ -1,77 +1,66 @@
-from aiogram.types import Message
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-import pytz
 import asyncio
 import logging
-import os
-from datetime import datetime, timedelta
-from aiogram import F
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.types import Message
+import re
+from datetime import datetime
+from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
-from aiogram.client.default import DefaultBotProperties
-from aiogram.utils.token import validate_token
-from dotenv import load_dotenv
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+import os
 
-
-submitted_links = []
-
-# Загрузка переменных окружения
-load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-# Проверка токена
-validate_token(BOT_TOKEN)
-
-# Логирование (для Railway обязательно, иначе не видно ошибок)
+# Инициализация логирования
 logging.basicConfig(level=logging.INFO)
 
-# Инициализация бота и диспетчера
-bot = Bot(
-    token=BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-)
+# Получение токена и ID чата из переменных окружения
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = int(os.getenv("CHAT_ID"))  # Убедись, что это число
+
+# Создание экземпляра бота и диспетчера
+bot = Bot(token=BOT_TOKEN, default=types.DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
+# Хранилище фильмов
+suggested_movies = []
 
-# Основная функция запуска
+# Регулярка для ссылок на Кинопоиск
+KINopoisk_PATTERN = re.compile(r"https?://(www\.)?kinopoisk\.ru/film/\S+")
+
+@dp.message()
+async def handle_movie_links(message: types.Message):
+    if message.chat.id != CHAT_ID:
+        return
+
+    links = re.findall(r"https?://\S+", message.text)
+    kino_links = [link for link in links if KINopoisk_PATTERN.match(link)]
+    bad_links = [link for link in links if not KINopoisk_PATTERN.match(link)]
+
+    response = ""
+
+    if kino_links:
+        suggested_movies.extend(kino_links)
+        response += f"✅ Добавлены ссылки: {' | '.join(kino_links)}\n"
+
+    if bad_links:
+        response += f"⚠️ Не добавлены (некорректные): {' | '.join(bad_links)}"
+
+    if response:
+        await message.reply(response)
+
+async def send_reminder():
+    text = (
+        "🎬 Пора выбирать фильм для киновечера!\n"
+        "Отправьте ссылки на фильмы с Кинопоиска.\n"
+        "📌 Дедлайн: до <b>четверга 19:00</b> по Москве."
+    )
+    await bot.send_message(chat_id=CHAT_ID, text=text)
+
 async def main():
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(send_reminder, CronTrigger(day_of_week='wed', hour=19, minute=48, timezone="Europe/Moscow"))
+    scheduler.start()
+
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
-    # Задачи по расписанию
-scheduler = AsyncIOScheduler(timezone=pytz.timezone("Europe/Moscow"))
-
-# Каждую среду в 14:00 — напоминание о сборе фильмов
-scheduler.add_job(
-    send_reminder,
-    CronTrigger(day_of_week="wed", hour=19, minute=27)
-)
-
-# Каждую следующую четверг в 19:00 — запуск голосования
-scheduler.add_job(
-    start_voting,
-    CronTrigger(day_of_week="thu", hour=19, minute=0)
-)
-
-scheduler.start()
-
 if __name__ == "__main__":
     asyncio.run(main())
-
-# ID чата, куда бот будет писать (пока поставим временный заглушку)
-GROUP_CHAT_ID = -4890829963
-
-async def send_reminder():
-    await bot.send_message(
-        chat_id=GROUP_CHAT_ID,
-        text="🎬 Пора выбирать фильм на киновечер! Пришлите ссылки на Кинопоиск до следующего четверга 19:00 🕖"
-    )
-
-async def start_voting():
-    await bot.send_message(
-        chat_id=GROUP_CHAT_ID,
-        text="🗳 Время голосовать за фильм! Сейчас я запущу голосование..."
-    )
-    # Здесь потом подключим сбор фильмов и запуск голосовалки
