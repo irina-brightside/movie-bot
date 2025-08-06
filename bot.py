@@ -35,32 +35,6 @@ bot = Bot(
 dp = Dispatcher()
 
 
-@router.message(F.text)
-async def handle_movie_links(message: Message):
-    if datetime.now() > DEADLINE:
-        await message.answer("⛔ Прием фильмов завершен.")
-        return
-
-    urls = re.findall(r'https?://\S+', message.text)
-
-    valid_urls = []
-    invalid_urls = []
-
-    for url in urls:
-        if re.match(KINOPOISK_URL_PATTERN, url):
-            valid_urls.append(url)
-        else:
-            invalid_urls.append(url)
-
-    # Сохраняем валидные ссылки
-    for url in valid_urls:
-        user_movie_suggestions.setdefault(message.from_user.id, []).append(url)
-
-    if invalid_urls:
-        await message.answer("⚠️ Некоторые ссылки недопустимы. Принимаются только ссылки на Кинопоиск.")
-    elif valid_urls:
-        await message.answer("✅ Фильм(ы) приняты!")
-
 # Основная функция запуска
 async def main():
     await bot.delete_webhook(drop_pending_updates=True)
