@@ -2,7 +2,9 @@ import asyncio
 import logging
 import re
 from datetime import datetime
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
+from aiogram.client.bot import DefaultBotProperties
 from aiogram.enums import ParseMode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -16,7 +18,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = int(os.getenv("CHAT_ID"))  # Убедись, что это число
 
 # Создание экземпляра бота и диспетчера
-bot = Bot(token=BOT_TOKEN, default=types.DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
 # Хранилище фильмов
@@ -56,7 +58,7 @@ async def send_reminder():
 
 async def main():
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(send_reminder, CronTrigger(day_of_week='wed', hour=19, minute=48, timezone="Europe/Moscow"))
+    scheduler.add_job(send_reminder, CronTrigger(day_of_week='wed', hour=19, minute=55, timezone="Europe/Moscow"))
     scheduler.start()
 
     await bot.delete_webhook(drop_pending_updates=True)
