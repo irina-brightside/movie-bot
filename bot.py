@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from datetime import datetime
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -58,7 +58,7 @@ async def send_reminder():
 
 async def main():
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(send_reminder, CronTrigger(day_of_week='wed', hour=19, minute=55, timezone="Europe/Moscow"))
+    scheduler.add_job(send_reminder, CronTrigger(day_of_week='wed', hour=20, minute=00, timezone="Europe/Moscow"))
     scheduler.start()
 
     await bot.delete_webhook(drop_pending_updates=True)
