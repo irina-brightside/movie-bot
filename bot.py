@@ -64,9 +64,9 @@ async def main():
     
 @dp.startup()
 async def schedule_vote():
-    scheduler.add_job(send_vote_poll, CronTrigger(day_of_week='wed', hour=20, minute=20, timezone="Europe/Moscow"))
+    scheduler.add_job(send_vote_poll, CronTrigger(day_of_week='wed', hour=20, minute=23, timezone="Europe/Moscow"))
 
- scheduler.start()
+scheduler.start()
 
 async def send_vote_poll():
     if not movie_links:
@@ -82,10 +82,10 @@ async def send_vote_poll():
         allows_multiple_answers=True
     )
 
-    movie_links.clear()
+movie_links.clear()
 
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+await bot.delete_webhook(drop_pending_updates=True)
+await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
