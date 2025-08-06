@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+from aiogram.types import KeyboardButtonPollType
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
@@ -22,7 +23,7 @@ bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTM
 dp = Dispatcher()
 
 # Хранилище фильмов
-suggested_movies = []
+movie_links = []
 
 # Регулярка для ссылок на Кинопоиск
 KINopoisk_PATTERN = re.compile(r"https?://(www\.)?kinopoisk\.ru/film/\S+")
@@ -59,7 +60,29 @@ async def send_reminder():
 async def main():
     scheduler = AsyncIOScheduler()
     scheduler.add_job(send_reminder, CronTrigger(day_of_week='wed', hour=20, minute=00, timezone="Europe/Moscow"))
-    scheduler.start()
+
+    
+@dp.startup()
+async def schedule_vote():
+    scheduler.add_job(send_vote_poll, CronTrigger(day_of_week='wed', hour=20, minute=20, timezone="Europe/Moscow"))
+
+ scheduler.start()
+
+async def send_vote_poll():
+    if not movie_links:
+        await bot.send_message(CHAT_ID, "Фильмы для голосования не были предложены.")
+        return
+
+    options = [f"🎬 {link}" for link in movie_links]
+    await bot.send_poll(
+        chat_id=CHAT_ID,
+        question="Выбираем фильм для киновечера 🎥",
+        options=options,
+        is_anonymous=False,
+        allows_multiple_answers=True
+    )
+
+    movie_links.clear()
 
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
