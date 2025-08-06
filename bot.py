@@ -1,3 +1,7 @@
+from aiogram.types import Message
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+import pytz
 import asyncio
 import logging
 import os
@@ -10,7 +14,6 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.utils.token import validate_token
 from dotenv import load_dotenv
 
-DEADLINE = datetime(2025, 8, 10, 21, 0)  # 10 августа 2025, 21:00 по МСК
 
 submitted_links = []
 
@@ -31,11 +34,6 @@ bot = Bot(
 )
 dp = Dispatcher()
 
-# Хэндлер на команду /start
-@dp.message(F.text == "/start")
-async def start_handler(message: Message):
-    await message.answer("Привет! Я помогу вам выбрать фильм на киновечер! 🎬 Отправь мне сыылки на фильм с Кинопоиска."
-                         f"Дедлайн: {DEADLINE.strftime('%d.%m.%Y %H:%M')} по МСК.")
 
 @router.message(F.text)
 async def handle_movie_links(message: Message):
@@ -68,5 +66,38 @@ async def main():
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
+    # Задачи по расписанию
+scheduler = AsyncIOScheduler(timezone=pytz.timezone("Europe/Moscow"))
+
+# Каждую среду в 14:00 — напоминание о сборе фильмов
+scheduler.add_job(
+    send_reminder,
+    CronTrigger(day_of_week="wed", hour=19, minute=27)
+)
+
+# Каждую следующую четверг в 19:00 — запуск голосования
+scheduler.add_job(
+    start_voting,
+    CronTrigger(day_of_week="thu", hour=19, minute=0)
+)
+
+scheduler.start()
+
 if __name__ == "__main__":
     asyncio.run(main())
+
+# ID чата, куда бот будет писать (пока поставим временный заглушку)
+GROUP_CHAT_ID = -4890829963
+
+async def send_reminder():
+    await bot.send_message(
+        chat_id=GROUP_CHAT_ID,
+        text="🎬 Пора выбирать фильм на киновечер! Пришлите ссылки на Кинопоиск до следующего четверга 19:00 🕖"
+    )
+
+async def start_voting():
+    await bot.send_message(
+        chat_id=GROUP_CHAT_ID,
+        text="🗳 Время голосовать за фильм! Сейчас я запущу голосование..."
+    )
+    # Здесь потом подключим сбор фильмов и запуск голосовалки

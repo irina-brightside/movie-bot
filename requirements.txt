@@ -1,2 +1,4 @@
 aiogram==3.21.0
 python-dotenv
+apscheduler
+pytz
