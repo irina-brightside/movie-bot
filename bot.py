@@ -50,6 +50,7 @@ async def handle_movie_links(message: types.Message):
         await message.reply(response)
 
 async def send_reminder():
+    movie_links.clear()
     text = (
         "🎬 Пора выбирать фильм для киновечера!\n"
         "Отправьте ссылки на фильмы с Кинопоиска.\n"
@@ -57,34 +58,27 @@ async def send_reminder():
     )
     await bot.send_message(chat_id=CHAT_ID, text=text)
 
-async def main():
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(send_reminder, CronTrigger(day_of_week='wed', hour=20, minute=00, timezone="Europe/Moscow"))
-
-    
-@dp.startup()
-async def schedule_vote():
-    scheduler.add_job(send_vote_poll, CronTrigger(day_of_week='wed', hour=20, minute=28, timezone="Europe/Moscow"))
-
-scheduler.start()
-
 async def send_vote_poll():
     if not movie_links:
         await bot.send_message(CHAT_ID, "Фильмы для голосования не были предложены.")
         return
 
-    options = [f"🎬 {link}" for link in movie_links]
+    unique_links = list(dict.fromkeys(movie_links))
     await bot.send_poll(
         chat_id=CHAT_ID,
         question="Выбираем фильм для киновечера 🎥",
-        options=options,
+        options=unique_links,
         is_anonymous=False,
         allows_multiple_answers=True
     )
 
-    movie_links.clear()
+scheduler = AsyncIOScheduler()
+scheduler.add_job(send_reminder, CronTrigger(day_of_week='wed', hour=20, minute=00, timezone="Europe/Moscow"))
+scheduler.add_job(send_vote_poll, CronTrigger(day_of_week='wed', hour=20, minute=48, timezone="Europe/Moscow"))
 
+async def main():
     await bot.delete_webhook(drop_pending_updates=True)
+    scheduler.start()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
